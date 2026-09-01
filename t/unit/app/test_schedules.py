@@ -1400,3 +1400,66 @@ class test_crontab_is_due:
         with patch_crontab_nowfun(crontab, now):
             due, remaining = crontab.is_due(last_run_at)
             assert (due, remaining) == (True, 3600)
+
+
+    def test_minute_crontab_with_negative_offset_tz_during_dst_end_is_due(self):
+        # Minute-level schedule during fall-back should still be due when the
+        # clock repeats the 1 AM hour.
+        tzname = "America/Los_Angeles"
+        self.app.timezone = tzname
+        tz = ZoneInfo(tzname)
+        ct = self.crontab(minute='*', hour='*')
+        last_run_at = datetime(2024, 11, 3, 1, 0, tzinfo=tz, fold=0)
+        now = datetime(2024, 11, 3, 1, 0, tzinfo=tz, fold=1)
+        ct.nowfun = lambda: now
+
+        is_due, rem = ct.is_due(last_run_at)
+        assert (is_due, rem) == (True, 60)
+
+    def test_minute_crontab_with_negative_offset_tz_during_dst_start_is_due(self):
+        # Minute-level schedule during the trigger after the switch to DST (1 hour disappears).
+        tzname = "America/Los_Angeles"
+        self.app.timezone = tzname
+        tz = ZoneInfo(tzname)
+        ct = self.crontab(minute='*', hour='*')
+        last_run_at = datetime(2024, 3, 10, 1, 59, tzinfo=tz, fold=1)  # 2024-03-10T01:59:00-08:00
+        print(last_run_at.isoformat())
+        now = datetime(2024, 3, 10, 3, 0, tzinfo=tz, fold=0)  # 2024-03-10T03:00:00-07:00
+        print(now.isoformat())
+        ct.nowfun = lambda: now
+
+        is_due, rem = ct.is_due(last_run_at)
+        assert (is_due, rem) == (True, 60)
+
+    def test_minute_crontab_with_positive_offset_tz_during_dst_end_is_due(self):
+        # Minute-level schedule during fall-back should still be due when the
+        # clock repeats the 1 AM hour.
+        tzname = "Europe/Paris"
+        self.app.timezone = tzname
+        tz = ZoneInfo(tzname)
+        ct = self.crontab(minute='*', hour='*')
+        last_run_at = datetime(2024, 10, 27, 2, 59, tzinfo=tz, fold=0)  # 2024-10-27T02:59:00+02:00
+        print(last_run_at.isoformat())
+        now = datetime(2024, 10, 27, 2, 0, tzinfo=tz, fold=1)  # 2024-10-27T02:00:00+01:00
+        print(now.isoformat())
+        ct.nowfun = lambda: now
+
+        is_due, rem = ct.is_due(last_run_at)
+        assert (is_due, rem) == (True, 60)
+
+
+    def test_minute_crontab_with_positive_offset_tz_during_dst_start_is_due(self):
+        # Minute-level schedule during the trigger after the switch to DST (1 hour disappears).
+        tzname = "Europe/Paris"
+        self.app.timezone = tzname
+        tz = ZoneInfo(tzname)
+        ct = self.crontab(minute='*', hour='*')
+        last_run_at = datetime(2024, 3, 31, 1, 59, tzinfo=tz, fold=1)  # 2024-03-31T01:59:00+01:00
+        print(last_run_at.isoformat())
+        now = datetime(2024, 3, 31, 3, 0, tzinfo=tz, fold=0)  # 2024-03-31T03:00:00+02:00
+        print(now.isoformat())
+        ct.nowfun = lambda: now
+
+        is_due, rem = ct.is_due(last_run_at)
+        assert (is_due, rem) == (True, 60)
+
